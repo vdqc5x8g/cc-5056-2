@@ -1,17 +1,22 @@
 """Alpha estimation with hard trimap constraints.
 
-Global solve (Levin et al.):
-    alpha* = argmin  alpha^T L alpha + lambda * || W (alpha - alpha_hat) ||^2
-where W is 1 on *manually marked* trimap pixels (definite fg/bg) and 0 on
-unknown pixels.  Unknown pixels are therefore free: nothing in the trimap is
-ever painted into them by construction.
+Global solve (Levin et al., original hard-constraint form): fixed trimap
+pixels keep their labels exactly and the unknown band minimises the matting
+Laplacian energy subject to them:
+
+    alpha_f* = argmin  alpha^T L alpha   s.t.  alpha_c = labels
+             = solve( L_ff alpha_f = -L_fc alpha_c )
+
+assembled by elimination, so confirmed foreground/background pixels are never
+moved by the unknown-region solve (no soft lambda that trades fixed-point
+error for a smaller residual, no post-hoc snap that would hide such drift).
 
 Block solve: the image is split into tiles with an overlap.  Each tile is an
-independent closed-form solve whose border ring is clamped to the currently
-known alpha (trimap labels plus already solved overlap values), and tiles are
-blended by a distance ramp inside the overlap.  The same global constrained
-system is also exposed so callers can compare tiled vs. global alpha along
-block seams.
+independent hard-constraint solve whose overlap ring is clamped to the
+*fractional* alpha of the global reference solve (never a binarized label,
+which would bend fine strands at tile seams), and tiles are blended by a
+distance ramp inside the overlap.  The same global constrained system is also
+exposed so callers can compare tiled vs. global alpha along block seams.
 """
 from __future__ import annotations
 
@@ -21,7 +26,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
-from .imageio import trimap_masks, TRIMAP_BG, TRIMAP_FG, TRIMAP_UNKNOWN
+from .imageio import trimap_masks
 from .laplacian import matting_laplacian
 
 
@@ -35,58 +40,68 @@ class BlockResult:
     alpha_global: np.ndarray
 
 
-def _constrained_solve(L: sp.csr_matrix, constrained_idx: np.ndarray,
-                       constrained_values: np.ndarray, n: int,
-                       lam: float, method: str = "auto") -> np.ndarray:
-    """Solve (L + lambda W) alpha = lambda W alpha_hat.
+def _hard_solve(L: sp.csr_matrix, fixed_idx: np.ndarray,
+                fixed_values: np.ndarray, n: int,
+                method: str = "auto") -> np.ndarray:
+    """Solve L alpha = 0 with alpha[fixed_idx] == fixed_values exactly.
 
-    Direct sparse LU is used for small systems; larger systems use Jacobi-
-    preconditioned conjugate gradient, which exploits the SPD, banded structure
-    of the matting Laplacian and avoids the fill-in blow-up of a full LU.
+    Elimination form of Levin's constrained system: the free unknowns satisfy
+    L_ff a_f = -L_fc a_c.  L_ff is a principal submatrix of the SPD matting
+    Laplacian and is positive definite as long as every connected component
+    of the pixel graph touches at least one constraint.  Direct sparse LU is
+    used for small systems; larger ones use Jacobi-preconditioned CG.
     """
-    W = sp.coo_matrix(
-        (np.ones(len(constrained_idx)), (constrained_idx, constrained_idx)),
-        shape=(n, n),
-    ).tocsr()
-    A = (L + lam * W).tocsr()
-    b = np.zeros(n, dtype=np.float64)
-    b[constrained_idx] = lam * constrained_values
+    if len(fixed_idx) == 0:
+        raise ValueError(
+            "no constraints: a trimap without definite labels is ill-posed")
+    fixed_mask = np.zeros(n, dtype=bool)
+    fixed_mask[fixed_idx] = True
+    free_idx = np.flatnonzero(~fixed_mask)
 
-    use_cg = method == "cg" or (method == "auto" and n > 60_000)
+    alpha = np.empty(n, dtype=np.float64)
+    alpha[fixed_idx] = fixed_values
+    if len(free_idx) == 0:
+        return alpha
+
+    Lff = L[free_idx][:, free_idx].tocsr()
+    rhs = -np.asarray(L[free_idx][:, fixed_idx] @ fixed_values).ravel()
+
+    use_cg = method == "cg" or (method == "auto" and len(free_idx) > 60_000)
+    x = None
     if not use_cg:
-        alpha = spla.spsolve(A, b)
-    else:
-        diag = A.diagonal()
+        x = spla.spsolve(Lff, rhs)
+        if not np.all(np.isfinite(x)):
+            use_cg = True
+    if use_cg:
+        diag = Lff.diagonal()
         diag[diag < 1e-12] = 1e-12
         precon = spla.LinearOperator(
-            (n, n), matvec=lambda x: x / diag, dtype=np.float64
+            (len(free_idx), len(free_idx)),
+            matvec=lambda v: v / diag, dtype=np.float64,
         )
-        alpha, info = spla.cg(A, b, rtol=1e-7, maxiter=4000, M=precon)
+        x, info = spla.cg(Lff, rhs, rtol=1e-8, maxiter=5000, M=precon)
         if info != 0:
-            # Fall back to a direct solve if CG fails to converge.
-            alpha = spla.spsolve(A, b)
-    return np.clip(alpha, 0.0, 1.0)
+            x = spla.spsolve(Lff, rhs)
+        if not np.all(np.isfinite(x)):
+            raise RuntimeError("alpha solve failed to produce finite values")
+    alpha[free_idx] = x
+    return alpha
 
 
 def solve_alpha_global(image: np.ndarray, trimap: np.ndarray,
                        radius: int = 1, eps: float = 1e-7,
-                       lam: float = 100.0, L: sp.csr_matrix | None = None,
+                       L: sp.csr_matrix | None = None,
                        method: str = "auto"
                        ) -> np.ndarray:
-    """Closed-form alpha; fixed trimap pixels are hard constraints."""
+    """Closed-form alpha; fixed trimap pixels are exact hard constraints."""
     h, w = trimap.shape
     if L is None:
         L = matting_laplacian(image, radius=radius, eps=eps)
     bg, fg, _ = trimap_masks(trimap)
     idx = np.flatnonzero((bg | fg).ravel())
     values = np.where(fg.ravel()[idx], 1.0, 0.0)
-    alpha = _constrained_solve(L, idx, values, h * w, lam,
-                               method=method).reshape(h, w)
-    # Constraints are part of the linear system at high weight; snap the labels
-    # so fixed points are exact regardless of solver tolerance.
-    alpha[bg] = 0.0
-    alpha[fg] = 1.0
-    return alpha
+    alpha = _hard_solve(L, idx, values, h * w, method=method).reshape(h, w)
+    return np.clip(alpha, 0.0, 1.0)
 
 
 def _ramp_weights(tile_shape, overlap: int, axis_pos: tuple[int, int],
@@ -114,12 +129,17 @@ def _ramp_weights(tile_shape, overlap: int, axis_pos: tuple[int, int],
 
 def solve_alpha_blocks(image: np.ndarray, trimap: np.ndarray,
                        block: int = 160, overlap: int = 32,
-                       radius: int = 1, eps: float = 1e-7,
-                       lam: float = 100.0) -> BlockResult:
-    """Tile-based solve with overlapping windows and ramp blending."""
+                       radius: int = 1, eps: float = 1e-7
+                       ) -> BlockResult:
+    """Tile-based solve with overlapping windows and ramp blending.
+
+    The overlap ring of every tile is constrained to the *fractional* alpha
+    of the global reference solve, so adjacent tiles share boundary values
+    without quantising fine strands to 0/1 at the seam.
+    """
     h, w = trimap.shape
     L = matting_laplacian(image, radius=radius, eps=eps)
-    alpha_global = solve_alpha_global(image, trimap, radius, eps, lam, L=L,
+    alpha_global = solve_alpha_global(image, trimap, radius, eps, L=L,
                                       method="auto")
 
     # Tile origins: interior blocks start `overlap` px inside the previous tile,
@@ -137,59 +157,53 @@ def solve_alpha_blocks(image: np.ndarray, trimap: np.ndarray,
 
     acc = np.zeros((h, w), dtype=np.float64)
     wsum = np.zeros((h, w), dtype=np.float64)
-    fixed_mask = np.zeros((h, w), dtype=bool)
     bg, fg, _ = trimap_masks(trimap)
-    fixed_mask[bg | fg] = True
 
     for top in tops:
         for left in lefts:
             bot = min(top + block, h)
             right = min(left + block, w)
-            t_trimap = trimap[top:bot, left:right].copy()
+            t_trimap = trimap[top:bot, left:right]
             sub_h, sub_w = t_trimap.shape
+            t_bg, t_fg, t_unk = trimap_masks(t_trimap)
 
-            # Outer overlap ring that belongs to another tile's core is clamped
-            # to the global solution so adjacent tiles share boundary values.
+            # Overlap ring shared with a neighbouring tile: unknown pixels are
+            # clamped to the fractional global alpha so tiles agree on strand
+            # crossings instead of snapping them to 0 or 1.
+            ring = np.zeros((sub_h, sub_w), dtype=bool)
             if top > 0:
-                t_trimap[:overlap, :] = np.where(
-                    t_trimap[:overlap, :] == TRIMAP_UNKNOWN,
-                    np.where(alpha_global[top:top + min(overlap, sub_h), left:right] >= 0.5,
-                             TRIMAP_FG, TRIMAP_BG),
-                    t_trimap[:overlap, :],
-                )
+                ring[:overlap, :] = True
             if bot < h:
-                t_trimap[-overlap:, :] = np.where(
-                    t_trimap[-overlap:, :] == TRIMAP_UNKNOWN,
-                    np.where(alpha_global[bot - min(overlap, sub_h):bot, left:right] >= 0.5,
-                             TRIMAP_FG, TRIMAP_BG),
-                    t_trimap[-overlap:, :],
-                )
+                ring[-overlap:, :] = True
             if left > 0:
-                t_trimap[:, :overlap] = np.where(
-                    t_trimap[:, :overlap] == TRIMAP_UNKNOWN,
-                    np.where(alpha_global[top:bot, left:left + min(overlap, sub_w)] >= 0.5,
-                             TRIMAP_FG, TRIMAP_BG),
-                    t_trimap[:, :overlap],
-                )
+                ring[:, :overlap] = True
             if right < w:
-                t_trimap[:, -overlap:] = np.where(
-                    t_trimap[:, -overlap:] == TRIMAP_UNKNOWN,
-                    np.where(alpha_global[top:bot, right - min(overlap, sub_w):right] >= 0.5,
-                             TRIMAP_FG, TRIMAP_BG),
-                    t_trimap[:, -overlap:],
-                )
+                ring[:, -overlap:] = True
+            ring &= t_unk
+
+            label_idx = np.flatnonzero((t_bg | t_fg).ravel())
+            label_val = np.where(t_fg.ravel()[label_idx], 1.0, 0.0)
+            ring_idx = np.flatnonzero(ring.ravel())
+            ring_val = alpha_global[top:bot, left:right].ravel()[ring_idx]
+            con_idx = np.concatenate([label_idx, ring_idx])
+            con_val = np.concatenate([label_val, ring_val])
 
             sub_img = image[top:bot, left:right]
             sub_L = matting_laplacian(sub_img, radius=radius, eps=eps)
             # Tiles are small enough for a direct LU, which gives the most
             # accurate boundary values for seam blending.
-            t_alpha = solve_alpha_global(sub_img, t_trimap, radius, eps, lam,
-                                         L=sub_L, method="direct")
-            weights = _ramp_weights((sub_h, sub_w), overlap, (top, left), (h, w))
+            t_alpha = _hard_solve(sub_L, con_idx, con_val, sub_h * sub_w,
+                                  method="direct").reshape(sub_h, sub_w)
+            t_alpha = np.clip(t_alpha, 0.0, 1.0)
+            weights = _ramp_weights((sub_h, sub_w), overlap, (top, left),
+                                    (h, w))
             acc[top:bot, left:right] += t_alpha * weights
             wsum[top:bot, left:right] += weights
 
     alpha_tiled = acc / np.maximum(wsum, 1e-12)
+    # Every tile hard-constrains a labelled pixel to the same label, so the
+    # blend can only differ from it by floating-point rounding; snap back to
+    # the exact label rather than reporting 1-ulp noise as a violation.
     alpha_tiled[bg] = 0.0
     alpha_tiled[fg] = 1.0
 

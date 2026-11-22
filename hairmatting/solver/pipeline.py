@@ -28,22 +28,24 @@ class MattingResult:
 def run_pipeline(image: np.ndarray, trimap: np.ndarray,
                  use_blocks: bool = False, block: int = 160,
                  overlap: int = 32, radius: int = 1,
-                 eps: float = 1e-7, lam: float = 100.0) -> MattingResult:
+                 eps: float = 1e-7) -> MattingResult:
     if use_blocks:
         br = solve_alpha_blocks(image, trimap, block=block, overlap=overlap,
-                                radius=radius, eps=eps, lam=lam)
+                                radius=radius, eps=eps)
         alpha = br.alpha
         alpha_global = br.alpha_global
         block_info = {
             "fixed_violation": br.fixed_violation,
-            "seam_residual_mean": float(br.seam_residual.mean()),
-            "seam_residual_max": float(br.seam_residual.max()),
+            # A single-tile solve has no interior seams: report 0, not NaN.
+            "seam_residual_mean": float(br.seam_residual.mean())
+                if br.seam_residual.size else 0.0,
+            "seam_residual_max": float(br.seam_residual.max())
+                if br.seam_residual.size else 0.0,
             "tile_edges": br.tile_edges,
         }
         fixed_violation = br.fixed_violation
     else:
-        alpha = solve_alpha_global(image, trimap, radius=radius, eps=eps,
-                                   lam=lam)
+        alpha = solve_alpha_global(image, trimap, radius=radius, eps=eps)
         alpha_global = None
         block_info = None
         bg = trimap == 0

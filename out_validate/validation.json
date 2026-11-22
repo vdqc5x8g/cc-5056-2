@@ -1,13 +1,13 @@
 {
   "jpeg_q95": {
     "alpha": {
-      "sad": 1900.8790327932606,
-      "mse": 0.024785202536048778,
-      "max_error": 1.0,
-      "gradient_error": 0.035991033453823894,
-      "region:curtain_unknown_mse": 0.06347255669928671,
-      "region:flat_unknown_mse": 0.10264440172498518,
-      "region:all_unknown_mse": 0.08327894011962782
+      "sad": 1852.9226867847851,
+      "mse": 0.021057321307493736,
+      "max_error": 0.9999999941875455,
+      "gradient_error": 0.03439332751224585,
+      "region:curtain_unknown_mse": 0.0624353999901151,
+      "region:flat_unknown_mse": 0.07888575134457367,
+      "region:all_unknown_mse": 0.07075315898543381
     },
     "fixed_points": {
       "bg_max_alpha": 0.0,
@@ -15,18 +15,18 @@
       "max_violation": 0.0
     },
     "color_residue": {
-      "black_max": 0.25887055388675534,
-      "black_mean": 0.004500214828346156,
-      "black_lowalpha_mean": 0.0008537128213719373,
-      "white_max": 1.0,
-      "white_mean": 0.027704865994680587,
-      "white_lowalpha_mean": 0.004673019811550771
+      "black_max": 0.24152654729674755,
+      "black_mean": 0.004446399292492715,
+      "black_lowalpha_mean": 0.0011606788091330492,
+      "white_max": 0.9480592287633512,
+      "white_mean": 0.026754724519758737,
+      "white_lowalpha_mean": 0.0061197053442891775
     },
-    "uncertain_fraction": 0.009683333333333334,
+    "uncertain_fraction": 0.01685,
     "seam": {
-      "seam_mean_abs_diff": 0.011430582919961862,
-      "seam_max_abs_diff": 0.43447541958249897,
-      "seam_jump": 0.013353121464420808
+      "seam_mean_abs_diff": 0.0001477962234984556,
+      "seam_max_abs_diff": 0.01854816286183314,
+      "seam_jump": 0.01490936186361238
     },
     "trimap_mutated_by_solver": false,
     "stroke_changes_pixels": 20,
@@ -34,13 +34,13 @@
   },
   "jpeg_q70": {
     "alpha": {
-      "sad": 1856.1102475892565,
-      "mse": 0.023187803095857575,
-      "max_error": 1.0,
-      "gradient_error": 0.0359373203005562,
-      "region:curtain_unknown_mse": 0.06855768545691215,
-      "region:flat_unknown_mse": 0.0870573507687564,
-      "region:all_unknown_mse": 0.07791163506214493
+      "sad": 1910.2882324029465,
+      "mse": 0.020585777927797772,
+      "max_error": 0.9999999994797806,
+      "gradient_error": 0.03556633166720431,
+      "region:curtain_unknown_mse": 0.06691468886013205,
+      "region:flat_unknown_mse": 0.07137265300297797,
+      "region:all_unknown_mse": 0.06916876055446794
     },
     "fixed_points": {
       "bg_max_alpha": 0.0,
@@ -48,18 +48,18 @@
       "max_violation": 0.0
     },
     "color_residue": {
-      "black_max": 0.28045535562088286,
-      "black_mean": 0.004622297769605965,
-      "black_lowalpha_mean": 0.0008312314831088857,
-      "white_max": 0.9684797648195614,
-      "white_mean": 0.027081209824575757,
-      "white_lowalpha_mean": 0.003961540240651896
+      "black_max": 0.2416751397518439,
+      "black_mean": 0.004830920228563895,
+      "black_lowalpha_mean": 0.001368287360667347,
+      "white_max": 0.9480592765659543,
+      "white_mean": 0.027575387829396336,
+      "white_lowalpha_mean": 0.006407586399331333
     },
-    "uncertain_fraction": 0.012983333333333333,
+    "uncertain_fraction": 0.015483333333333333,
     "seam": {
-      "seam_mean_abs_diff": 0.010614373178483199,
-      "seam_max_abs_diff": 0.3844109857973391,
-      "seam_jump": 0.01343446052473878
+      "seam_mean_abs_diff": 0.00040327067372138056,
+      "seam_max_abs_diff": 0.030530086233168108,
+      "seam_jump": 0.017576443232251954
     },
     "trimap_mutated_by_solver": false,
     "stroke_changes_pixels": 20,

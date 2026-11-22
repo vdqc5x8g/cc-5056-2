@@ -1,0 +1,46 @@
+{
+  "A_fixed_point_drift": {
+    "fixed_point_violation": 0.0,
+    "unknown_deviation_from_hard_ref_max": 0.01079728028252791,
+    "unknown_deviation_from_hard_ref_mean": 0.0006406836977911021,
+    "unknown_intermediate_pixels": 1307,
+    "pass": false
+  },
+  "B_fine_strand_tight_prompts": {
+    "fixed_point_violation": 0.0,
+    "alpha_between_strands_max": 7.681787172428395e-08,
+    "unknown_genuine_min_max": [
+      4.430198321851953e-09,
+      8.592429596680243e-08
+    ],
+    "pass": true
+  },
+  "C_overlapping_stroke_undo": {
+    "selective_undo_available": false,
+    "stroke2_pixels_destroyed_by_sequential_undo": 1,
+    "pass": false
+  },
+  "D_atomic_cross_block_stroke": {
+    "atomic_api": false,
+    "segments_left_after_one_undo": true,
+    "pass": false
+  },
+  "E_stale_write_back": {
+    "guarded_write_back": false,
+    "locks_released": false,
+    "pass": false
+  },
+  "F_swapped_write_backs": {
+    "guarded_write_back": false,
+    "pass": false
+  },
+  "G_tiled_ring_write_back": {
+    "seam_residual_max": 0.41292422643605126,
+    "seam_residual_mean": 0.011658084121298845,
+    "strand_residual_max": 0.4918364776025893,
+    "strand_residual_mean": 0.0694863336763435,
+    "fixed_violation": 0.0,
+    "pass": false
+  },
+  "all_pass": false
+}

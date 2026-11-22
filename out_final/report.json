@@ -1,12 +1,12 @@
 {
   "alpha": {
-    "sad": 2466.298234784892,
-    "mse": 0.02214704954906505,
+    "sad": 2506.7811568199795,
+    "mse": 0.019553072288295368,
     "max_error": 1.0,
-    "gradient_error": 0.03142076906775117,
-    "region:curtain_unknown_mse": 0.08446837764385398,
-    "region:flat_unknown_mse": 0.09259123338392665,
-    "region:all_unknown_mse": 0.08831405328799785
+    "gradient_error": 0.030855785693428724,
+    "region:curtain_unknown_mse": 0.07647805970681576,
+    "region:flat_unknown_mse": 0.07962982784806867,
+    "region:all_unknown_mse": 0.0779702292546522
   },
   "fixed_points": {
     "bg_max_alpha": 0.0,
@@ -14,18 +14,18 @@
     "max_violation": 0.0
   },
   "color_residue": {
-    "black_max": 0.3817649572757924,
-    "black_mean": 0.00424892941196054,
-    "black_lowalpha_mean": 0.0009840026987471841,
-    "white_max": 1.0,
-    "white_mean": 0.024922774453036263,
-    "white_lowalpha_mean": 0.004758875605677162
+    "black_max": 0.25741451097763346,
+    "black_mean": 0.004360049940519575,
+    "black_lowalpha_mean": 0.00136062286116786,
+    "white_max": 0.9509476456895989,
+    "white_mean": 0.025091395441649518,
+    "white_lowalpha_mean": 0.006384704295207445
   },
-  "uncertain_fraction": 0.005636574074074074,
+  "uncertain_fraction": 0.011909722222222223,
   "seam": {
-    "seam_mean_abs_diff": 0.017772657805288306,
-    "seam_max_abs_diff": 0.49693921913039485,
-    "seam_jump": 0.015280680491020542
+    "seam_mean_abs_diff": 0.00034399076619408915,
+    "seam_max_abs_diff": 0.021721466057970845,
+    "seam_jump": 0.016014223057097644
   },
-  "montage": "/workspace/out_final/report_montage.png"
+  "montage": "out_final/report_montage.png"
 }

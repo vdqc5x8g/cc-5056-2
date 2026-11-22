@@ -20,7 +20,8 @@ import sys
 import numpy as np
 from PIL import Image, ImageDraw
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
 
 from hairmatting.solver.imageio import (  # noqa: E402
     composite, load_rgb, load_trimap, save_rgb,

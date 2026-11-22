@@ -67,6 +67,7 @@ if QtWidgets is not None:
             self.channel = "RGB"
             self.brush_radius = 8
             self.on_stroke = None
+            self.on_stroke_end = None
             self.stroke_label = TRIMAP_BG
             self._stroke_start = None
             self.base_rgb = None
@@ -180,6 +181,8 @@ if QtWidgets is not None:
 
         def mouseReleaseEvent(self, event):
             self._panning = False
+            if self._stroke_start is not None and self.on_stroke_end:
+                self.on_stroke_end()
             self._stroke_start = None
 
         def paintEvent(self, event):
@@ -205,9 +208,11 @@ if QtWidgets is not None:
             self.editor = None
             self.image = None
             self.result = None
+            self._stroke_open = False
 
             self.canvas = ImageCanvas()
             self.canvas.on_stroke = self._apply_stroke
+            self.canvas.on_stroke_end = self._end_stroke
             self.setCentralWidget(self.canvas)
 
             dock = QtWidgets.QDockWidget("Controls", self)
@@ -299,23 +304,40 @@ if QtWidgets is not None:
         def _load_image(self):
             path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Open image")
             if path:
-                self.image = load_rgb(path)
-                self.canvas.set_base_image(self.image)
-                self.status.setText(
-                    f"Loaded image {os.path.basename(path)}")
+                self.load_image(path)
+
+        def load_image(self, path: str):
+            self.image = load_rgb(path)
+            self.canvas.set_base_image(self.image)
+            self.status.setText(f"Loaded image {os.path.basename(path)}")
 
         def _load_trimap(self):
             path, _ = QtWidgets.QFileDialog.getOpenFileName(
                 self, "Open trimap")
             if path:
-                self.editor = TrimapEditor(load_trimap(path))
-                self.canvas.set_trimap(self.editor.trimap)
-                self.status.setText(
-                    f"Loaded trimap {os.path.basename(path)}")
+                self.load_trimap(path)
 
-        def _apply_stroke(self, mask, _ignored):
+        def load_trimap(self, path: str):
+            self.editor = TrimapEditor(load_trimap(path))
+            self.canvas.set_trimap(self.editor.trimap)
+            self.status.setText(f"Loaded trimap {os.path.basename(path)}")
+
+        def set_scene(self, image: np.ndarray, trimap: np.ndarray):
+            """Load an in-memory scene (e.g. the synthetic demo)."""
+            self.image = image
+            self.editor = TrimapEditor(trimap.copy())
+            self.canvas.set_base_image(self.image)
+            self.canvas.set_trimap(self.editor.trimap)
+            self.status.setText("Demo scene loaded.")
+
+        def _apply_stroke(self, mask):
             if self.editor is None or self.image is None:
                 return
+            if not self._stroke_open:
+                # One physical drag (which may cross tile blocks) is a single
+                # atomic history entry.
+                self.editor.begin_stroke()
+                self._stroke_open = True
             choice = self.label_combo.currentIndex()
             if choice == 0:
                 self.editor.paint(mask, TRIMAP_BG)
@@ -325,17 +347,26 @@ if QtWidgets is not None:
                 self.editor.erase_to_unknown(mask)
             self.canvas.set_trimap(self.editor.trimap)
 
+        def _end_stroke(self):
+            if self._stroke_open:
+                self.editor.end_stroke()
+                self._stroke_open = False
+                self.canvas.set_trimap(self.editor.trimap)
+
         def _undo(self):
+            self._end_stroke()
             if self.editor:
                 self.editor.undo()
                 self.canvas.set_trimap(self.editor.trimap)
 
         def _redo(self):
+            self._end_stroke()
             if self.editor:
                 self.editor.redo()
                 self.canvas.set_trimap(self.editor.trimap)
 
         def _reset(self):
+            self._end_stroke()
             if self.editor:
                 self.editor.reset()
                 self.canvas.set_trimap(self.editor.trimap)
@@ -354,11 +385,18 @@ if QtWidgets is not None:
             self.canvas.update()
 
         def _solve(self, blocks: bool):
+            self._end_stroke()
             if self.editor is None or self.image is None:
                 self.status.setText("Load both image and trimap first.")
                 return
-            self.result = run_pipeline(
-                self.image, self.editor.trimap, use_blocks=blocks)
+            try:
+                self.result = run_pipeline(
+                    self.image, self.editor.trimap, use_blocks=blocks)
+            except Exception as exc:
+                # Solver failures feed back into the workbench instead of
+                # crashing the canvas.
+                self.status.setText(f"Solve failed: {exc}")
+                return
             self.canvas.set_result(self.result)
             self.canvas.set_uncertain(self.result.uncertain_mask,
                                       self.result.uncertainty_score)
@@ -372,6 +410,7 @@ if QtWidgets is not None:
             self.status.setText(msg)
 
         def _export(self):
+            self._end_stroke()
             if self.result is None:
                 self.status.setText("Run a solve before exporting.")
                 return
@@ -399,16 +438,75 @@ if QtWidgets is not None:
                 f"Exported alpha, RGBA, composites, maps to {outdir}")
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    """Launch the workbench.
+
+    Usage:
+        python3 -m hairmatting.gui.workbench [--image IMG] [--trimap TRI]
+                                             [--demo] [--blocks]
+
+    With no arguments the window opens empty; use the "Load image" /
+    "Load trimap" buttons.  ``--demo`` skips the file dialogs by generating
+    the synthetic hair scene in memory.  On a headless host run with
+    ``QT_QPA_PLATFORM=offscreen`` (no window will be shown, but the full
+    widget stack, painting and solving, still executes).  ``--screenshot``
+    renders the chosen layer once and exits without entering the event loop,
+    which is how headless runs capture the alpha/composite views.
+    """
+    import argparse
+
     if QtWidgets is None:
         print(
             "PySide6 (or its system libraries) is unavailable in this "
             "environment; use 'python -m hairmatting.cli' or the headless "
             "report script instead.", file=sys.stderr)
         return 1
-    app = QtWidgets.QApplication(sys.argv)
+
+    parser = argparse.ArgumentParser(prog="hairmatting.gui.workbench")
+    parser.add_argument("--image", default=None)
+    parser.add_argument("--trimap", default=None)
+    parser.add_argument("--demo", action="store_true",
+                        help="load the synthetic hair scene at startup")
+    parser.add_argument("--blocks", action="store_true",
+                        help="run one tiled solve at startup")
+    parser.add_argument("--solve", action="store_true",
+                        help="run one global solve at startup")
+    parser.add_argument("--layer", default=None,
+                        choices=["image", "alpha", "foreground",
+                                 "black", "white", "evidence"],
+                        help="layer to display (for --screenshot)")
+    parser.add_argument("--no-trimap-overlay", action="store_true",
+                        help="hide the trimap overlay (for clean screenshots)")
+    parser.add_argument("--screenshot", default=None, metavar="PNG",
+                        help="render the canvas once to this file and exit")
+    args = parser.parse_args(argv)
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(
+        sys.argv)
     win = MainWindow()
+    if args.demo:
+        from ..solver.synthetic import make_hair_scene
+        scene = make_hair_scene(h=240, w=360, jpeg_quality=70)
+        win.set_scene(scene.image, scene.trimap)
+    if args.image:
+        win.load_image(args.image)
+    if args.trimap:
+        win.load_trimap(args.trimap)
+    if args.solve and win.editor is not None and win.image is not None:
+        win._solve(False)
+    if args.blocks and win.editor is not None and win.image is not None:
+        win._solve(True)
+    if args.layer:
+        win.canvas.active_layer = args.layer
+        win.canvas.update()
+    if args.no_trimap_overlay:
+        win.canvas.show_trimap = False
+        win.canvas.update()
     win.show()
+    if args.screenshot:
+        app.processEvents()
+        win.canvas.grab().save(args.screenshot)
+        return 0
     return app.exec()
 
 
