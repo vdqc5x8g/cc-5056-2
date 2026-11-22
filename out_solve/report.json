@@ -1,0 +1,21 @@
+{
+  "fixed_point_violation": 0.0,
+  "uncertain_fraction": 0.0070182291666666665,
+  "alpha_mean_unknown": 0.08760922214313836,
+  "block": {
+    "fixed_violation": 0.0,
+    "seam_residual_mean": 0.006458037016190439,
+    "seam_residual_max": 0.49049800499607144,
+    "tile_edges": [
+      [
+        160,
+        288
+      ],
+      [
+        160,
+        288,
+        416
+      ]
+    ]
+  }
+}

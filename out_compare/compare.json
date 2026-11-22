@@ -1,0 +1,10 @@
+{
+  "alpha_diff_mean": 0.0020337853697107435,
+  "alpha_diff_max": 1.0,
+  "changed_pixels": 1860,
+  "unknown_region_changed_fraction": 0.1648575934687819,
+  "pixels_changed_outside_edit": 1777,
+  "fixed_violation_before": 0.0,
+  "fixed_violation_after": 0.0,
+  "uncertain_fraction_after": 0.015703125
+}

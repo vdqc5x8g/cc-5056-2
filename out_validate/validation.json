@@ -1,0 +1,68 @@
+{
+  "jpeg_q95": {
+    "alpha": {
+      "sad": 1900.8790327932606,
+      "mse": 0.024785202536048778,
+      "max_error": 1.0,
+      "gradient_error": 0.035991033453823894,
+      "region:curtain_unknown_mse": 0.06347255669928671,
+      "region:flat_unknown_mse": 0.10264440172498518,
+      "region:all_unknown_mse": 0.08327894011962782
+    },
+    "fixed_points": {
+      "bg_max_alpha": 0.0,
+      "fg_min_alpha": 1.0,
+      "max_violation": 0.0
+    },
+    "color_residue": {
+      "black_max": 0.25887055388675534,
+      "black_mean": 0.004500214828346156,
+      "black_lowalpha_mean": 0.0008537128213719373,
+      "white_max": 1.0,
+      "white_mean": 0.027704865994680587,
+      "white_lowalpha_mean": 0.004673019811550771
+    },
+    "uncertain_fraction": 0.009683333333333334,
+    "seam": {
+      "seam_mean_abs_diff": 0.011430582919961862,
+      "seam_max_abs_diff": 0.43447541958249897,
+      "seam_jump": 0.013353121464420808
+    },
+    "trimap_mutated_by_solver": false,
+    "stroke_changes_pixels": 20,
+    "undo_restores_trimap": true
+  },
+  "jpeg_q70": {
+    "alpha": {
+      "sad": 1856.1102475892565,
+      "mse": 0.023187803095857575,
+      "max_error": 1.0,
+      "gradient_error": 0.0359373203005562,
+      "region:curtain_unknown_mse": 0.06855768545691215,
+      "region:flat_unknown_mse": 0.0870573507687564,
+      "region:all_unknown_mse": 0.07791163506214493
+    },
+    "fixed_points": {
+      "bg_max_alpha": 0.0,
+      "fg_min_alpha": 1.0,
+      "max_violation": 0.0
+    },
+    "color_residue": {
+      "black_max": 0.28045535562088286,
+      "black_mean": 0.004622297769605965,
+      "black_lowalpha_mean": 0.0008312314831088857,
+      "white_max": 0.9684797648195614,
+      "white_mean": 0.027081209824575757,
+      "white_lowalpha_mean": 0.003961540240651896
+    },
+    "uncertain_fraction": 0.012983333333333333,
+    "seam": {
+      "seam_mean_abs_diff": 0.010614373178483199,
+      "seam_max_abs_diff": 0.3844109857973391,
+      "seam_jump": 0.01343446052473878
+    },
+    "trimap_mutated_by_solver": false,
+    "stroke_changes_pixels": 20,
+    "undo_restores_trimap": true
+  }
+}

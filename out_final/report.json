@@ -1,0 +1,31 @@
+{
+  "alpha": {
+    "sad": 2466.298234784892,
+    "mse": 0.02214704954906505,
+    "max_error": 1.0,
+    "gradient_error": 0.03142076906775117,
+    "region:curtain_unknown_mse": 0.08446837764385398,
+    "region:flat_unknown_mse": 0.09259123338392665,
+    "region:all_unknown_mse": 0.08831405328799785
+  },
+  "fixed_points": {
+    "bg_max_alpha": 0.0,
+    "fg_min_alpha": 1.0,
+    "max_violation": 0.0
+  },
+  "color_residue": {
+    "black_max": 0.3817649572757924,
+    "black_mean": 0.00424892941196054,
+    "black_lowalpha_mean": 0.0009840026987471841,
+    "white_max": 1.0,
+    "white_mean": 0.024922774453036263,
+    "white_lowalpha_mean": 0.004758875605677162
+  },
+  "uncertain_fraction": 0.005636574074074074,
+  "seam": {
+    "seam_mean_abs_diff": 0.017772657805288306,
+    "seam_max_abs_diff": 0.49693921913039485,
+    "seam_jump": 0.015280680491020542
+  },
+  "montage": "/workspace/out_final/report_montage.png"
+}
